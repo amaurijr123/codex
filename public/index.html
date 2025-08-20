@@ -2,32 +2,55 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Hub de Especialistas de RH</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #agents button { margin-right: 10px; }
-    #chat { margin-top: 20px; }
-    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; margin-bottom: 10px; }
-    .message { margin-bottom: 8px; padding: 4px 8px; border-radius: 4px; }
-    .message.user { background: #e1f5fe; text-align: right; }
-    .message.agent { background: #f1f8e9; text-align: left; }
-  </style>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@mui/material@5.15.8/umd/material-ui.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@mui/icons-material@5.15.8/umd/material-ui-icons.development.js"></script>
+
 </head>
 <body>
   <div id="root"></div>
   <script type="text/babel">
-
-    const agentNames = {
-      recrutamento: 'Especialista em Recrutamento',
-      engajamento: 'Especialista em Engajamento',
-      treinamento: 'Especialista em Treinamento'
+    const {
+      ThemeProvider, createTheme, CssBaseline,
+      Container, Grid, Card, CardContent, Typography,
+      Box, Paper, TextField, IconButton, AppBar, Toolbar, Chip
+    } = MaterialUI;
+    const { PersonSearch, Group, School, Send } = MaterialUIIcons;
+    const agentDetails = {
+      recrutamento: { name: 'Especialista em Recrutamento', icon: PersonSearch },
+      engajamento: { name: 'Especialista em Engajamento', icon: Group },
+      treinamento: { name: 'Especialista em Treinamento', icon: School }
     };
-
+    function AgentSelection({ onSelect }) {
+      return (
+        <Container sx={{ mt: 4 }}>
+          <Grid container spacing={2} justifyContent="center">
+            {Object.entries(agentDetails).map(([key, { name, icon: Icon }]) => (
+              <Grid item xs={12} sm={4} key={key}>
+                <Card onClick={() => onSelect(key)} sx={{ textAlign: 'center', cursor: 'pointer' }}>
+                  <CardContent>
+                    <Icon sx={{ fontSize: 40, color: 'primary.main' }} />
+                    <Typography variant="h6">{name}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      );
+    }
     function Chat({ name, messages, onSend }) {
       const [input, setInput] = React.useState('');
+      const messagesEnd = React.useRef(null);
+      React.useEffect(() => {
+        messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages]);
+
       const handleSend = () => {
         const text = input.trim();
         if (!text) return;
@@ -35,23 +58,29 @@
         setInput('');
       };
       return (
-        <div id="chat">
-          <h2>{name}</h2>
-          <div id="messages">
+        <Container sx={{ mt: 4 }}>
+          <Typography variant="h5" gutterBottom>{name}</Typography>
+          <Paper sx={{ p: 2, height: 300, overflowY: 'auto', mb: 2 }}>
             {messages.map((m, i) => (
-              <div key={i} className={'message ' + (m.sender === 'Você' ? 'user' : 'agent')}>
-                <strong>{m.sender}: </strong>{m.text}
-              </div>
+              <Box key={i} sx={{ textAlign: m.sender === 'Você' ? 'right' : 'left', mb: 1 }}>
+                <Chip color={m.sender === 'Você' ? 'primary' : 'default'} label={`${m.sender}: ${m.text}`} />
+              </Box>
             ))}
-          </div>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Digite sua pergunta"
-            onKeyPress={e => { if (e.key === 'Enter') handleSend(); }}
-          />
-          <button onClick={handleSend}>Enviar</button>
-        </div>
+            <div ref={messagesEnd} />
+          </Paper>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              fullWidth
+              placeholder="Digite sua pergunta"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyPress={e => { if (e.key === 'Enter') handleSend(); }}
+            />
+            <IconButton color="primary" onClick={handleSend}>
+              <Send />
+            </IconButton>
+          </Box>
+        </Container>
       );
     }
 
@@ -72,31 +101,38 @@
           body: JSON.stringify({ agent: currentAgent, message: text })
         });
         const data = await res.json();
-        setMessages(msgs => [...msgs, { sender: agentNames[currentAgent], text: data.reply }]);
+        setMessages(msgs => [...msgs, { sender: agentDetails[currentAgent].name, text: data.reply }]);
       };
 
-      if (!currentAgent) {
-        return (
-          <div>
-            <h1>Especialistas de RH</h1>
-            <div id="agents">
-              {Object.entries(agentNames).map(([key, name]) => (
-                <button key={key} onClick={() => selectAgent(key)}>{name}</button>
-              ))}
-            </div>
-          </div>
-        );
-      }
       return (
-        <div>
-          <h1>Especialistas de RH</h1>
-          <Chat name={agentNames[currentAgent]} messages={messages} onSend={sendMessage} />
-        </div>
+        <Box>
+          <AppBar position="static">
+            <Toolbar>
+              <Typography variant="h6" sx={{ flexGrow: 1 }}>Especialistas de RH</Typography>
+            </Toolbar>
+          </AppBar>
+          {!currentAgent ? (
+            <AgentSelection onSelect={selectAgent} />
+          ) : (
+            <Chat name={agentDetails[currentAgent].name} messages={messages} onSend={sendMessage} />
+          )}
+        </Box>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    const theme = createTheme({
+      palette: {
+        primary: { main: '#1976d2' },
+        background: { default: '#ffffff' }
+      }
+    });
 
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    );
   </script>
 </body>
 </html>
