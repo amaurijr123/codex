@@ -8,59 +8,95 @@
     #agents button { margin-right: 10px; }
     #chat { margin-top: 20px; }
     #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; margin-bottom: 10px; }
+    .message { margin-bottom: 8px; padding: 4px 8px; border-radius: 4px; }
+    .message.user { background: #e1f5fe; text-align: right; }
+    .message.agent { background: #f1f8e9; text-align: left; }
   </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 </head>
 <body>
-  <h1>Especialistas de RH</h1>
-  <div id="agents">
-    <button data-agent="recrutamento">Especialista em Recrutamento</button>
-    <button data-agent="engajamento">Especialista em Engajamento</button>
-    <button data-agent="treinamento">Especialista em Treinamento</button>
-  </div>
-  <div id="chat" style="display:none;">
-    <h2 id="agent-title"></h2>
-    <div id="messages"></div>
-    <input id="input" placeholder="Digite sua pergunta" />
-    <button id="send">Enviar</button>
-  </div>
-  <script>
+  <div id="root"></div>
+  <script type="text/babel">
+
     const agentNames = {
       recrutamento: 'Especialista em Recrutamento',
       engajamento: 'Especialista em Engajamento',
       treinamento: 'Especialista em Treinamento'
     };
-    let currentAgent = null;
-    document.querySelectorAll('#agents button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        currentAgent = btn.dataset.agent;
-        document.getElementById('agent-title').textContent = agentNames[currentAgent];
-        document.getElementById('chat').style.display = 'block';
-        document.getElementById('messages').innerHTML = '';
-      });
-    });
-    async function sendMessage() {
-      const input = document.getElementById('input');
-      const text = input.value.trim();
-      if (!text) return;
-      appendMessage('Você', text);
-      input.value = '';
-      const res = await fetch('/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent: currentAgent, message: text })
-      });
-      const data = await res.json();
-      appendMessage(agentNames[currentAgent], data.reply);
+
+    function Chat({ name, messages, onSend }) {
+      const [input, setInput] = React.useState('');
+      const handleSend = () => {
+        const text = input.trim();
+        if (!text) return;
+        onSend(text);
+        setInput('');
+      };
+      return (
+        <div id="chat">
+          <h2>{name}</h2>
+          <div id="messages">
+            {messages.map((m, i) => (
+              <div key={i} className={'message ' + (m.sender === 'Você' ? 'user' : 'agent')}>
+                <strong>{m.sender}: </strong>{m.text}
+              </div>
+            ))}
+          </div>
+          <input
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="Digite sua pergunta"
+            onKeyPress={e => { if (e.key === 'Enter') handleSend(); }}
+          />
+          <button onClick={handleSend}>Enviar</button>
+        </div>
+      );
     }
-    function appendMessage(sender, text) {
-      const div = document.createElement('div');
-      div.textContent = sender + ': ' + text;
-      document.getElementById('messages').appendChild(div);
+
+    function App() {
+      const [currentAgent, setCurrentAgent] = React.useState(null);
+      const [messages, setMessages] = React.useState([]);
+
+      const selectAgent = agent => {
+        setCurrentAgent(agent);
+        setMessages([]);
+      };
+
+      const sendMessage = async text => {
+        setMessages(msgs => [...msgs, { sender: 'Você', text }]);
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent: currentAgent, message: text })
+        });
+        const data = await res.json();
+        setMessages(msgs => [...msgs, { sender: agentNames[currentAgent], text: data.reply }]);
+      };
+
+      if (!currentAgent) {
+        return (
+          <div>
+            <h1>Especialistas de RH</h1>
+            <div id="agents">
+              {Object.entries(agentNames).map(([key, name]) => (
+                <button key={key} onClick={() => selectAgent(key)}>{name}</button>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      return (
+        <div>
+          <h1>Especialistas de RH</h1>
+          <Chat name={agentNames[currentAgent]} messages={messages} onSend={sendMessage} />
+        </div>
+      );
     }
-    document.getElementById('send').addEventListener('click', sendMessage);
-    document.getElementById('input').addEventListener('keypress', e => {
-      if (e.key === 'Enter') sendMessage();
-    });
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
   </script>
 </body>
 </html>

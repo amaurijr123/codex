@@ -1,6 +1,6 @@
 # Hub de Especialistas de RH
 
-Este projeto demonstra um pequeno WebApp que serve como hub para vários agentes de IA focados em Gestão de Pessoas. A tela inicial apresenta três especialistas e, ao selecionar um deles, abre-se um chat com um _prompt_ de sistema específico.
+Este projeto demonstra um pequeno WebApp que serve como hub para vários agentes de IA focados em Gestão de Pessoas. A interface utiliza **React** para listar os especialistas e disponibilizar um chat com mensagens formatadas entre usuário e especialista.
 
 ## Executando
 
