@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hub de Especialistas de RH</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@mui/material@5.15.8/umd/material-ui.development.js"></script>
+  <script crossorigin src="https://unpkg.com/@mui/icons-material@5.15.8/umd/material-ui-icons.development.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const {
+      ThemeProvider, createTheme, CssBaseline,
+      Container, Grid, Card, CardContent, Typography,
+      Box, Paper, TextField, IconButton, AppBar, Toolbar, Chip
+    } = MaterialUI;
+    const { PersonSearch, Group, School, Send } = MaterialUIIcons;
+
+    const agentDetails = {
+      recrutamento: { name: 'Especialista em Recrutamento', icon: PersonSearch },
+      engajamento: { name: 'Especialista em Engajamento', icon: Group },
+      treinamento: { name: 'Especialista em Treinamento', icon: School }
+    };
+
+    function AgentSelection({ onSelect }) {
+      return (
+        <Container sx={{ mt: 4 }}>
+          <Grid container spacing={2} justifyContent="center">
+            {Object.entries(agentDetails).map(([key, { name, icon: Icon }]) => (
+              <Grid item xs={12} sm={4} key={key}>
+                <Card onClick={() => onSelect(key)} sx={{ textAlign: 'center', cursor: 'pointer' }}>
+                  <CardContent>
+                    <Icon sx={{ fontSize: 40, color: 'primary.main' }} />
+                    <Typography variant="h6">{name}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      );
+    }
+
+    function Chat({ name, messages, onSend }) {
+      const [input, setInput] = React.useState('');
+      const messagesEnd = React.useRef(null);
+      React.useEffect(() => {
+        messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages]);
+      const handleSend = () => {
+        const text = input.trim();
+        if (!text) return;
+        onSend(text);
+        setInput('');
+      };
+      return (
+        <Container sx={{ mt: 4 }}>
+          <Typography variant="h5" gutterBottom>{name}</Typography>
+          <Paper sx={{ p: 2, height: 300, overflowY: 'auto', mb: 2 }}>
+            {messages.map((m, i) => (
+              <Box key={i} sx={{ textAlign: m.sender === 'Você' ? 'right' : 'left', mb: 1 }}>
+                <Chip color={m.sender === 'Você' ? 'primary' : 'default'} label={`${m.sender}: ${m.text}`} />
+              </Box>
+            ))}
+            <div ref={messagesEnd} />
+          </Paper>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <TextField
+              fullWidth
+              placeholder="Digite sua pergunta"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyPress={e => { if (e.key === 'Enter') handleSend(); }}
+            />
+            <IconButton color="primary" onClick={handleSend}>
+              <Send />
+            </IconButton>
+          </Box>
+        </Container>
+      );
+    }
+
+    function App() {
+      const [currentAgent, setCurrentAgent] = React.useState(null);
+      const [messages, setMessages] = React.useState([]);
+
+      const selectAgent = agent => {
+        setCurrentAgent(agent);
+        setMessages([]);
+      };
+
+      const sendMessage = async text => {
+        setMessages(msgs => [...msgs, { sender: 'Você', text }]);
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ agent: currentAgent, message: text })
+        });
+        const data = await res.json();
+        setMessages(msgs => [...msgs, { sender: agentDetails[currentAgent].name, text: data.reply }]);
+      };
+
+      return (
+        <Box>
+          <AppBar position="static">
+            <Toolbar>
+              <Typography variant="h6" sx={{ flexGrow: 1 }}>Especialistas de RH</Typography>
+            </Toolbar>
+          </AppBar>
+          {!currentAgent ? (
+            <AgentSelection onSelect={selectAgent} />
+          ) : (
+            <Chat name={agentDetails[currentAgent].name} messages={messages} onSend={sendMessage} />
+          )}
+        </Box>
+      );
+    }
+
+    const theme = createTheme({
+      palette: {
+        primary: { main: '#1976d2' },
+        background: { default: '#ffffff' }
+      }
+    });
+
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    );
+  </script>
+</body>
+</html>
